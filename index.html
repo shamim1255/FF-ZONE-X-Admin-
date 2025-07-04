@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>FF Zone X - Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #1A1A2E; --bg-light: #16213E; --sidebar: #0F3460;
+            --primary: #E94560; --text: #FFFFFF; --text-muted: #A1A5B7;
+            --success: #50CD89; --danger: #F1416C; --border: #533483; --warning: #ffc107;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html { height: 100%; scroll-behavior: smooth; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-dark); color: var(--text); height: 100%; }
+        .app-wrapper { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; }
+        .header { display: flex; align-items: center; padding: 15px; background-color: var(--bg-light); position: sticky; top: 0; z-index: 1000; flex-shrink: 0; }
+        .main-content { padding: 20px; transition: margin-left 0.3s ease-in-out; flex-grow: 1; overflow-y: auto; }
+        .hidden { display: none !important; }
+        .sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100%; background: var(--sidebar); z-index: 1001; transform: translateX(-100%); transition: transform 0.3s ease-in-out; padding: 20px; display: flex; flex-direction: column; }
+        .sidebar.active { transform: translateX(0); }
+        .sidebar-header { text-align: center; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .sidebar-header h2 { font-size: 1.5rem; color: var(--primary); }
+        .sidebar nav { margin-top: 30px; flex-grow: 1; overflow-y: auto; }
+        .sidebar nav a { display: flex; align-items: center; gap: 10px; color: var(--text-muted); text-decoration: none; padding: 15px; border-radius: 8px; margin-bottom: 10px; font-weight: 500; transition: background 0.2s, color 0.2s; }
+        .sidebar nav a.active, .sidebar nav a:hover { background-color: var(--primary); color: white; }
+        .menu-btn { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; margin-right: 15px; }
+        .header h1 { font-size: 1.2rem; }
+        
+        @media (min-width: 768px) { 
+            .app-wrapper { flex-direction: row; }
+            .sidebar { transform: translateX(0); position: relative; flex-shrink: 0; } 
+            .main-content-container { flex-grow: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+            .main-content { margin-left: 0; } 
+            .menu-btn { display: none; } 
+        }
+        
+        .page-content { animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;}
+        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-secondary { background-color: var(--border); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-warning { background-color: var(--warning); color: black; }
+        .item-card { background: var(--bg-light); padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .item-card .info { display: flex; align-items: center; gap: 15px; }
+        .item-card img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
+        .item-card h4 { font-size: 1.1rem; flex-grow: 1; }
+        .item-card p { color: var(--text-muted); font-size: 0.9rem; word-break: break-all; }
+        .item-card .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; align-items: center; margin-top: 10px;}
+        .status-badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+        .status-active { background-color: var(--success); color: white; }
+        .status-blocked { background-color: var(--danger); color: white; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1002; display: flex; justify-content: center; align-items: center; padding: 15px; }
+        .modal-content { background: var(--bg-light); padding: 20px; border-radius: 15px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; animation: fadeIn 0.3s; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-modal { font-size: 1.5rem; cursor: pointer; background: none; border: none; color: var(--text-muted); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .fieldset { border: 1px solid var(--border); padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .fieldset legend { padding: 0 10px; font-weight: 600; color: var(--primary); }
+        .player-result-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .player-result-table th, .player-result-table td { padding: 12px; border: 1px solid var(--border); text-align: left; }
+        .player-result-table th { background-color: var(--sidebar); }
+        .player-result-table input, .player-result-table select { background: var(--bg-dark); padding: 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); width: 100%; }
+        /* Avatar Grid Style */
+        .avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; }
+        .avatar-card { background: var(--bg-dark); padding: 10px; border-radius: 10px; position: relative; }
+        .avatar-card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; }
+        .avatar-card .actions { margin-top: 10px; text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="app-wrapper">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header"><h2>FF Zone X</h2></div>
+            <nav>
+                <a href="#dashboard" class="nav-link">📊 Dashboard</a>
+                <a href="#tournaments" class="nav-link">🏆 Manage Tournaments</a>
+                <a href="#users" class="nav-link">👥 Users</a>
+                <a href="#deposit-requests" class="nav-link">💰 Deposit Requests</a>
+                <a href="#withdraw-requests" class="nav-link">💸 Withdraw Requests</a>
+                <a href="#withdraw-settings" class="nav-link">🏧 Withdraw Settings</a>
+                <a href="#sliders" class="nav-link">🖼️ Manage Sliders</a>
+                <!-- NEW: Avatar Management Link -->
+                <a href="#avatars" class="nav-link">👤 Manage Avatars</a>
+                <a href="#payment-methods" class="nav-link">💳 Payment Methods</a>
+                <a href="#settings" class="nav-link">⚙️ App Settings</a>
+            </nav>
+        </aside>
+
+        <div class="main-content-container">
+            <header class="header"><button class="menu-btn" id="menu-btn">☰</button><h1 id="header-title">Dashboard</h1></header>
+            <main class="main-content">
+                <section id="dashboard-page" class="page-content"></section>
+                <section id="tournaments-page" class="page-content hidden"></section>
+                <section id="matches-page" class="page-content hidden"></section>
+                <section id="match-results-page" class="page-content hidden"></section>
+                <section id="users-page" class="page-content hidden"></section>
+                <section id="deposit-requests-page" class="page-content hidden"></section>
+                <section id="withdraw-requests-page" class="page-content hidden"></section>
+                <section id="withdraw-settings-page" class="page-content hidden"></section>
+                <section id="sliders-page" class="page-content hidden"></section>
+                <!-- NEW: Avatar Page Section -->
+                <section id="avatars-page" class="page-content hidden"></section>
+                <section id="payment-methods-page" class="page-content hidden"></section>
+                <section id="settings-page" class="page-content hidden"></section>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modals -->
+    <div id="tournament-modal" class="modal-overlay hidden"><div class="modal-content"><div class="modal-header"><h2>Add Tournament</h2><button class="close-modal">✖</button></div><form id="tournament-form"><div class="form-group"><label>Tournament Name</label><input type="text" id="tournament-name" required></div><div class="form-group"><label>Image URL</label><input type="url" id="tournament-image-url" required></div><button type="submit" class="btn btn-primary" style="width:100%;">Save</button></form></div></div>
+    <div id="match-modal" class="modal-overlay hidden"><div class="modal-content"><div class="modal-header"><h2 id="match-modal-title">Add Match</h2><button class="close-modal">✖</button></div><form id="match-form"><input type="hidden" id="match-id"><input type="hidden" id="match-tournament-id"><div class="form-group"><label>Match Name</label><input type="text" id="match-name" required></div><div class="form-group"><label>Date & Time</label><input type="datetime-local" id="match-date" required></div><fieldset><legend>Details</legend><div class="form-grid"><div class="form-group"><label>Entry Fee</label><input type="number" id="match-entry-fee" required></div><div class="form-group"><label>Per Kill</label><input type="number" id="match-per-kill"></div><div class="form-group"><label>Max Players</label><input type="number" id="match-max-players" required></div><div class="form-group"><label>Map</label><input type="text" id="match-map" required></div><div class="form-group"><label>Version</label><input type="text" id="match-version" required></div><div class="form-group"><label>Type</label><input type="text" id="match-entry-type" required></div></div></fieldset><fieldset><legend>Prizes</legend><div class="form-grid"><div class="form-group"><label>1st</label><input type="number" id="prize-winner" value="0"></div><div class="form-group"><label>2nd</label><input type="number" id="prize-second" value="0"></div><div class="form-group"><label>3rd</label><input type="number" id="prize-third" value="0"></div><div class="form-group"><label>4th</label><input type="number" id="prize-fourth" value="0"></div><div class="form-group"><label>5th</label><input type="number" id="prize-fifth" value="0"></div></div></fieldset><div class="form-group"><label>Rules (one per line)</label><textarea id="match-rules"></textarea></div><button type="submit" class="btn btn-primary" style="width:100%;">Save Match</button></form></div></div>
+    <div id="room-info-modal" class="modal-overlay hidden"><div class="modal-content"><div class="modal-header"><h2>Update Room Info</h2><button class="close-modal">✖</button></div><form id="room-info-form"><input type="hidden" id="room-info-tour-id"><input type="hidden" id="room-info-match-id"><div class="form-group"><label>Room ID</label><input type="text" id="room-id-input" required></div><div class="form-group"><label>Room Password</label><input type="text" id="room-pass-input" required></div><button type="submit" class="btn btn-primary" style="width:100%;">Update</button></form></div></div>
+    <div id="slider-modal" class="modal-overlay hidden"><div class="modal-content"><div class="modal-header"><h2 id="slider-modal-title">Slider</h2><button class="close-modal">✖</button></div><form id="slider-form"><input type="hidden" id="slider-id"><div class="form-group"><label>Image URL</label><input type="url" id="slider-image-url" required></div><div class="form-group"><label>Action URL (Optional link)</label><input type="url" id="slider-action-url"></div><button type="submit" class="btn btn-primary" style="width:100%;">Save</button></form></div></div>
+    <!-- NEW: Avatar Modal -->
+    <div id="avatar-modal" class="modal-overlay hidden"><div class="modal-content"><div class="modal-header"><h2>Add Avatar</h2><button class="close-modal">✖</button></div><form id="avatar-form"><div class="form-group"><label>Avatar Image URL</label><input type="url" id="avatar-image-url" required></div><button type="submit" class="btn btn-primary" style="width:100%;">Save Avatar</button></form></div></div>
+    <div id="payment-method-modal" class="modal-overlay hidden"><div class="modal-content"><div class="modal-header"><h2 id="pm-modal-title">Add Payment Method</h2><button class="close-modal">✖</button></div><form id="pm-form"><input type="hidden" id="pm-id"><div class="form-group"><label>Name (e.g., bKash, Nagad)</label><input type="text" id="pm-name" required></div><div class="form-group"><label>Logo URL</label><input type="url" id="pm-logo" required></div><div class="form-group"><label>Number / Account</label><input type="text" id="pm-number" required></div><div class="form-group"><label>Instructions (e.g., Send Money to this Personal number)</label><textarea id="pm-instructions" required></textarea></div><button type="submit" class="btn btn-primary" style="width:100%;">Save</button></form></div></div>
+    <div id="withdraw-method-modal" class="modal-overlay hidden"><div class="modal-content"><div class="modal-header"><h2 id="wm-modal-title">Add Withdraw Method</h2><button class="close-modal">✖</button></div><form id="withdraw-method-form"><input type="hidden" id="wm-id"><div class="form-group"><label>Method Name (e.g., bKash, Nagad)</label><input type="text" id="wm-name" required></div><div class="form-group"><label>Logo URL</label><input type="url" id="wm-logo" required></div><button type="submit" class="btn btn-primary" style="width:100%;">Save</button></form></div></div>
+
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script>
+        // --- NEW FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7DOazNPkmCz_E_ZJuYpK77LRxRO-cknA",
+            authDomain: "ff-zone-x-63252.firebaseapp.com",
+            databaseURL: "https://ff-zone-x-63252-default-rtdb.firebaseio.com",
+            projectId: "ff-zone-x-63252",
+            storageBucket: "ff-zone-x-63252.appspot.com",
+            messagingSenderId: "555403666049",
+            appId: "1:555403666049:web:4dc6781061a82dd6fce380",
+            measurementId: "G-FRNMSPJ2QS"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // --- CORE UI & NAVIGATION ---
+        const sidebar = document.getElementById('sidebar');
+        const menuBtn = document.getElementById('menu-btn');
+        const headerTitle = document.getElementById('header-title');
+        const allPages = document.querySelectorAll('.page-content');
+        const renderFunctions = {};
+
+        menuBtn.addEventListener('click', () => sidebar.classList.toggle('active'));
+        
+        function navigateTo(pageId, ...args) {
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            const activeLink = document.querySelector(`.nav-link[href="#${pageId}"]`);
+            if (activeLink) activeLink.classList.add('active');
+            
+            allPages.forEach(p => p.classList.add('hidden'));
+            const page = document.getElementById(pageId + '-page');
+            
+            if (page) {
+                page.classList.remove('hidden');
+                if (renderFunctions[pageId]) {
+                    renderFunctions[pageId](page, ...args);
+                }
+            } else {
+                document.getElementById('dashboard-page').classList.remove('hidden');
+                renderFunctions.dashboard(document.getElementById('dashboard-page'));
+            }
+
+            const pageTitle = activeLink ? activeLink.textContent.substring(2).trim() : 'Dashboard';
+            headerTitle.textContent = pageTitle;
+            if(window.location.hash !== `#${pageId}`) window.location.hash = pageId;
+            document.querySelector('.main-content').scrollTo(0, 0);
+        }
+
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const pageId = link.getAttribute('href').substring(1);
+                navigateTo(pageId);
+                if (window.innerWidth < 768) sidebar.classList.remove('active');
+            });
+        });
+
+        document.body.addEventListener('click', e => { 
+            if(e.target.matches('.close-modal')) e.target.closest('.modal-overlay').classList.add('hidden'); 
+        });
+
+        // --- GLOBAL ACTION FUNCTIONS ---
+        window.deleteItem = (path) => { if (confirm('Are you sure?')) db.ref(path).remove(); };
+        window.manageMatches = (tourId, tourName) => navigateTo('matches', tourId, tourName);
+        window.updateRoomInfo = (tourId, matchId) => {
+            const modal = document.getElementById('room-info-modal');
+            document.getElementById('room-info-tour-id').value = tourId;
+            document.getElementById('room-info-match-id').value = matchId;
+            db.ref(`tournaments/${tourId}/matches/${matchId}`).once('value', snapshot => {
+                const match = snapshot.val();
+                document.getElementById('room-id-input').value = (match && match.roomID) ? match.roomID : '';
+                document.getElementById('room-pass-input').value = (match && match.roomPassword) ? match.roomPassword : '';
+            });
+            modal.classList.remove('hidden');
+        };
+        window.deleteMatch = (tourId, matchId) => { if (confirm('Are you sure you want to delete this match?')) db.ref(`tournaments/${tourId}/matches/${matchId}`).remove(); };
+        window.editMatch = (tourId, matchId) => {
+            const modal = document.getElementById('match-modal');
+            document.getElementById('match-modal-title').textContent = 'Edit Match';
+            db.ref(`tournaments/${tourId}/matches/${matchId}`).once('value', snapshot => {
+                const match = snapshot.val();
+                if(!match) return alert('Match not found!');
+                document.getElementById('match-id').value = matchId;
+                document.getElementById('match-tournament-id').value = tourId;
+                document.getElementById('match-name').value = match.name || '';
+                document.getElementById('match-date').value = new Date(match.date).toISOString().slice(0, 16);
+                document.getElementById('match-entry-fee').value = match.entryFee || 0;
+                document.getElementById('match-per-kill').value = match.perKill || 0;
+                document.getElementById('match-max-players').value = match.maxPlayers || 0;
+                document.getElementById('match-map').value = match.map || '';
+                document.getElementById('match-version').value = match.version || '';
+                document.getElementById('match-entry-type').value = match.entryType || '';
+                document.getElementById('prize-winner').value = match.prizeDetails.winner || 0;
+                document.getElementById('prize-second').value = match.prizeDetails.second || 0;
+                document.getElementById('prize-third').value = match.prizeDetails.third || 0;
+                document.getElementById('prize-fourth').value = match.prizeDetails.fourth || 0;
+                document.getElementById('prize-fifth').value = match.prizeDetails.fifth || 0;
+                document.getElementById('match-rules').value = (match.rules || []).join('\n');
+                modal.classList.remove('hidden');
+            });
+        };
+        window.distributePrizes = (tourId, matchId, tourName) => {
+            if (!confirm('This will distribute prizes and complete the match. This action cannot be undone. Proceed?')) return;
+            const matchRef = db.ref(`tournaments/${tourId}/matches/${matchId}`);
+            matchRef.once('value', snapshot => {
+                const match = snapshot.val();
+                if (!match || match.status === 'completed') return alert('Match already completed or does not exist.');
+                const prizes = { '1': match.prizeDetails.winner || 0, '2': match.prizeDetails.second || 0, '3': match.prizeDetails.third || 0, '4': match.prizeDetails.fourth || 0, '5': match.prizeDetails.fifth || 0 };
+                let results = {};
+                
+                document.querySelectorAll('.player-row').forEach(row => {
+                    const userId = row.dataset.userid;
+                    const kills = parseInt(document.getElementById(`kills-${userId}`).value) || 0;
+                    const rank = document.getElementById(`rank-${userId}`).value;
+                    const rankPrize = parseFloat(prizes[rank]) || 0;
+                    const killPrize = kills * (parseFloat(match.perKill) || 0);
+                    const totalWinnings = rankPrize + killPrize;
+                    
+                    if (totalWinnings > 0) {
+                        db.ref(`users/${userId}`).transaction(user => {
+                            if (user) {
+                                user.walletBalance = (user.walletBalance || 0) + totalWinnings;
+                                user.winnings = (user.winnings || 0) + totalWinnings;
+                                user.lifetimeWinning = (user.lifetimeWinning || 0) + totalWinnings;
+                            }
+                            return user;
+                        });
+                        db.ref(`userTransactions/${userId}`).push({ amount: totalWinnings, details: `Prize from: ${match.name}`, timestamp: firebase.database.ServerValue.TIMESTAMP, type: 'winning' });
+                        results[userId] = {
+                            userName: row.dataset.username,
+                            inGameName: row.dataset.ingamename,
+                            prize: totalWinnings,
+                            rank: rank,
+                            kills: kills
+                        };
+                    }
+                });
+                matchRef.update({ status: 'completed', results: results });
+                alert(`Prizes distributed successfully!`);
+                navigateTo('matches', tourId, tourName);
+            });
+        };
+        window.approveDeposit = (reqId, userId, amount, methodName) => {
+            db.ref('depositRequests/' + reqId).update({ status: 'approved' });
+            db.ref('users/' + userId).transaction(user => {
+                if(user) { user.walletBalance = (user.walletBalance || 0) + amount; user.deposit = (user.deposit || 0) + amount; }
+                return user;
+            });
+            db.ref(`userTransactions/${userId}`).push({ amount, details: `${methodName} Deposit Approved`, timestamp: firebase.database.ServerValue.TIMESTAMP, type: 'deposit' });
+        };
+        window.rejectDeposit = (reqId) => {
+            const reason = prompt("Reason for rejection (optional):");
+            db.ref('depositRequests/' + reqId).update({ status: 'rejected', reason: reason || "Rejected by admin." });
+        };
+        window.approveWithdrawal = (reqId) => {
+            if(confirm("Have you sent the money manually?")) db.ref('withdrawRequests/' + reqId).update({ status: 'approved' });
+        };
+        window.rejectWithdrawal = (reqId, userId, amount) => {
+            if(confirm("Reject this? Amount will be refunded.")) {
+                const reason = prompt("Reason for rejection (optional):");
+                db.ref('withdrawRequests/' + reqId).update({ status: 'rejected', reason: reason || "Rejected by admin." });
+                db.ref('users/' + userId).transaction(user => {
+                    if(user) { user.walletBalance = (user.walletBalance || 0) + amount; user.winnings = (user.winnings || 0) + amount; }
+                    return user;
+                });
+                db.ref(`userTransactions/${userId}`).push({ amount, details: `Withdrawal Rejected & Refunded`, timestamp: firebase.database.ServerValue.TIMESTAMP, type: 'refund' });
+            }
+        };
+        window.blockUser = (userId) => { if (confirm('Block this user?')) db.ref(`users/${userId}`).update({ isBlocked: true }); };
+        window.unblockUser = (userId) => { if (confirm('Unblock this user?')) db.ref(`users/${userId}`).update({ isBlocked: false }); };
+
+        // --- RENDER FUNCTIONS ---
+        renderFunctions.dashboard = (container) => {
+            container.innerHTML = `<div id="dashboard-stats-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;"></div>`;
+            const statsContainer = container.querySelector('#dashboard-stats-container');
+            statsContainer.innerHTML = `<div class="item-card"><h4>Total Users</h4><h2 id="stat-total-users" style="font-size: 2rem; color: var(--primary);">...</h2></div><div class="item-card"><h4>Pending Deposits</h4><h2 id="stat-pending-deposits" style="font-size: 2rem; color: var(--success);">...</h2></div><div class="item-card"><h4>Pending Withdrawals</h4><h2 id="stat-pending-withdrawals" style="font-size: 2rem; color: var(--warning);">...</h2></div>`;
+            db.ref('users').on('value', s => { container.querySelector('#stat-total-users').textContent = s.numChildren(); });
+            db.ref('depositRequests').orderByChild('status').equalTo('pending').on('value', s => { container.querySelector('#stat-pending-deposits').textContent = s.numChildren(); });
+            db.ref('withdrawRequests').orderByChild('status').equalTo('pending').on('value', s => { container.querySelector('#stat-pending-withdrawals').textContent = s.numChildren(); });
+        };
+        
+        renderFunctions.tournaments = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>Tournaments</h2><button id="add-tournament-btn" class="btn btn-primary">Add Tournament</button></div><div id="tournaments-list">Loading...</div>`;
+            page.querySelector('#add-tournament-btn').onclick = () => { document.getElementById('tournament-form').reset(); document.getElementById('tournament-modal').classList.remove('hidden'); };
+            db.ref('tournaments').on('value', snap => {
+                const list = page.querySelector('#tournaments-list');
+                list.innerHTML = !snap.exists() ? '<p>No tournaments found.</p>' : '';
+                snap.forEach(child => { list.innerHTML += `<div class="item-card"><div class="info"><img src="${child.val().imageUrl}" alt="${child.val().name}"><h4>${child.val().name}</h4></div><div class="actions"><button class="btn btn-secondary" onclick="manageMatches('${child.key}', '${child.val().name.replace(/'/g, "\\'")}')">Manage Matches</button><button class="btn btn-danger" onclick="deleteItem('tournaments/${child.key}')">Delete</button></div></div>`; });
+            });
+        };
+
+        renderFunctions.matches = (page, tourId, tourName) => {
+            page.innerHTML = `<div class="list-header"><h2>Matches for: ${tourName}</h2><div><button class="btn btn-secondary" onclick="navigateTo('tournaments')">Back</button> <button id="add-match-btn" class="btn btn-primary">Add Match</button></div></div><div id="matches-list">Loading...</div>`;
+            page.querySelector('#add-match-btn').onclick = () => { document.getElementById('match-form').reset(); document.getElementById('match-id').value = ''; document.getElementById('match-tournament-id').value = tourId; document.getElementById('match-modal-title').textContent = 'Add Match'; document.getElementById('match-modal').classList.remove('hidden'); };
+            db.ref(`tournaments/${tourId}/matches`).orderByChild('date').on('value', snapshot => {
+                const list = page.querySelector('#matches-list');
+                list.innerHTML = !snapshot.exists() ? '<p>No matches found.</p>' : '';
+                let content = '';
+                snapshot.forEach(child => {
+                    const match = child.val();
+                    const safeMatchName = match.name.replace(/'/g, "\\'");
+                    const safeTourName = tourName.replace(/'/g, "\\'");
+                    let actionsHTML = '';
+                    if (match.status === 'completed') {
+                        actionsHTML = `<button class="btn btn-success" onclick="navigateTo('match-results', '${tourId}', '${child.key}', '${safeTourName}', '${safeMatchName}')">View Results</button><button class="btn btn-danger" onclick="deleteMatch('${tourId}', '${child.key}')">Delete</button>`;
+                    } else if (match.isStarted) {
+                        actionsHTML = `<button class="btn btn-primary" onclick="navigateTo('match-results', '${tourId}', '${child.key}', '${safeTourName}', '${safeMatchName}')">Enter Results</button><button class="btn btn-danger" onclick="deleteMatch('${tourId}', '${child.key}')">Delete</button>`;
+                    } else {
+                        actionsHTML = `<button class="btn btn-secondary" onclick="editMatch('${tourId}', '${child.key}')">Edit</button><button class="btn btn-danger" onclick="deleteMatch('${tourId}', '${child.key}')">Delete</button><button class="btn btn-warning" onclick="updateRoomInfo('${tourId}', '${child.key}')">Room Info</button><button class="btn btn-primary" onclick="db.ref('tournaments/${tourId}/matches/${child.key}').update({ isStarted: true })">Start</button>`;
+                    }
+                    content = `<div class="item-card"><h4>${match.name}</h4><p>${new Date(match.date).toLocaleString()}</p><div class="actions">${actionsHTML}</div></div>` + content;
+                });
+                list.innerHTML = content;
+            });
+        };
+        
+        renderFunctions['match-results'] = (page, tourId, matchId, tourName, matchName) => {
+             page.innerHTML = `<div class="list-header"><h2 id="results-match-name">Results for: ${matchName}</h2><button class="btn btn-secondary" onclick="navigateTo('matches', '${tourId}', '${tourName.replace(/'/g, "\\'")}')">Back</button></div><div id="player-results-container">Loading...</div>`;
+             db.ref(`tournaments/${tourId}/matches/${matchId}`).once('value', snapshot => {
+                 const match = snapshot.val();
+                 if (!match) { page.querySelector('#player-results-container').innerHTML = '<p>Match not found.</p>'; return; }
+                 if (match.status === 'completed') {
+                     let resultsHTML = '<h3>Match Completed - Final Results</h3><br><div class="item-card">';
+                     if(match.results && Object.keys(match.results).length > 0) {
+                        Object.values(match.results).forEach(res => { resultsHTML += `<p><b>${res.userName}</b> (Rank: ${res.rank}, Kills: ${res.kills}) won ৳${res.prize}</p>`});
+                     } else {
+                        resultsHTML += '<p>No prizes were awarded.</p>';
+                     }
+                     page.querySelector('#player-results-container').innerHTML = resultsHTML + '</div>';
+                     return;
+                 }
+                 const joinedPlayers = match.joinedPlayers || {};
+                 let tableHTML = `<table class="player-result-table"><thead><tr><th>User</th><th>In-Game Name</th><th>Kills</th><th>Rank</th></tr></thead><tbody>`;
+                 const promises = Object.keys(joinedPlayers).map(userId => db.ref(`users/${userId}`).once('value').then(userSnap => ({ userId, user: userSnap.val(), joined: joinedPlayers[userId] })));
+                 Promise.all(promises).then(results => {
+                    if (results.length === 0) {
+                        page.querySelector('#player-results-container').innerHTML = '<p>No players joined this match.</p>';
+                        return;
+                    }
+                     results.forEach(({ userId, user, joined }) => {
+                         if (user) {
+                            tableHTML += `<tr class="player-row" data-userid="${userId}" data-username="${user.name.replace(/'/g, "\\'")}" data-ingamename="${joined.inGameName.replace(/'/g, "\\'")}"><td >${user.name}</td><td>${joined.inGameName}</td><td><input type="number" id="kills-${userId}" value="0" min="0"></td><td><select id="rank-${userId}"><option value="0" selected>N/A</option><option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option><option value="4">4th</option><option value="5">5th</option></select></td></tr>`;
+                         }
+                     });
+                     page.querySelector('#player-results-container').innerHTML = `${tableHTML}</tbody></table><button class="btn btn-success" style="width:100%; margin-top:20px;" onclick="distributePrizes('${tourId}', '${matchId}', '${tourName.replace(/'/g, "\\'")}')">Distribute Prizes & Complete</button>`;
+                 });
+             });
+        };
+
+        renderFunctions.users = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>All Users</h2></div><div id="users-list">Loading...</div>`;
+            db.ref('users').on('value', snapshot => {
+                const list = page.querySelector('#users-list');
+                list.innerHTML = !snapshot.exists() ? '<p>No users found.</p>' : '';
+                snapshot.forEach(child => {
+                    const user = child.val(); const isBlocked = user.isBlocked === true;
+                    list.innerHTML += `<div class="item-card"><div><h4>${user.name} <span class="status-badge ${isBlocked ? 'status-blocked' : 'status-active'}">${isBlocked ? 'Blocked' : 'Active'}</span></h4><p>${user.email}</p><p>Balance: ৳${(user.walletBalance || 0).toFixed(2)}</p></div><div class="actions">${isBlocked ? `<button class="btn btn-success" onclick="unblockUser('${child.key}')">Unblock</button>` : `<button class="btn btn-danger" onclick="blockUser('${child.key}')">Block</button>`}</div></div>`;
+                });
+            });
+        };
+        
+        renderFunctions['deposit-requests'] = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>Pending Deposits</h2></div><div id="deposits-list">Loading...</div>`;
+            db.ref('depositRequests').orderByChild('status').equalTo('pending').on('value', snapshot => {
+                const list = page.querySelector('#deposits-list');
+                list.innerHTML = !snapshot.exists() ? '<p>No pending requests.</p>' : '';
+                let content = '';
+                snapshot.forEach(child => {
+                    const req = child.val();
+                    content = `<div class="item-card"><h4>${req.userName} | ৳${req.amount}</h4><p>Method: <b>${req.methodName}</b></p><p>TrxID: ${req.transactionId}</p><p>Date: ${new Date(req.timestamp).toLocaleString()}</p><div class="actions"><button class="btn btn-danger" onclick="rejectDeposit('${child.key}')">Reject</button><button class="btn btn-success" onclick="approveDeposit('${child.key}', '${req.userId}', ${req.amount}, '${req.methodName}')">Approve</button></div></div>` + content;
+                });
+                list.innerHTML = content;
+            });
+        };
+
+        renderFunctions['withdraw-requests'] = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>Pending Withdrawals</h2></div><div id="withdraw-list">Loading...</div>`;
+            db.ref('withdrawRequests').orderByChild('status').equalTo('pending').on('value', snapshot => {
+                const list = page.querySelector('#withdraw-list');
+                list.innerHTML = !snapshot.exists() ? '<p>No pending requests.</p>' : '';
+                let content = '';
+                snapshot.forEach(child => { 
+                    const req = child.val(); 
+                    content = `<div class="item-card"><h4>${req.userName} | ৳${req.amount}</h4><p>Method: ${req.method}</p><p>Account: ${req.accountNumber}</p><p>Date: ${new Date(req.timestamp).toLocaleString()}</p><div class="actions"><button class="btn btn-danger" onclick="rejectWithdrawal('${child.key}', '${req.userId}', ${req.amount})">Reject & Refund</button><button class="btn btn-success" onclick="approveWithdrawal('${child.key}')">Approve</button></div></div>` + content; 
+                });
+                list.innerHTML = content;
+            });
+        };
+
+        renderFunctions['withdraw-settings'] = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>Withdraw Methods</h2><button id="add-wm-btn" class="btn btn-primary">Add Method</button></div><div id="wm-list">Loading...</div>`;
+            page.querySelector('#add-wm-btn').onclick = () => {
+                document.getElementById('withdraw-method-form').reset();
+                document.getElementById('wm-id').value = '';
+                document.getElementById('wm-modal-title').textContent = 'Add Withdraw Method';
+                document.getElementById('withdraw-method-modal').classList.remove('hidden');
+            };
+            db.ref('withdrawMethods').on('value', snapshot => {
+                const list = page.querySelector('#wm-list');
+                list.innerHTML = !snapshot.exists() ? '<p>No withdraw methods found.</p>' : '';
+                snapshot.forEach(child => {
+                    const wm = child.val();
+                    list.innerHTML += `<div class="item-card"><div class="info"><img src="${wm.logo}" alt="${wm.name}"><h4>${wm.name}</h4></div><div class="actions"><button class="btn btn-danger" onclick="deleteItem('withdrawMethods/${child.key}')">Delete</button></div></div>`;
+                });
+            });
+        };
+
+        renderFunctions.sliders = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>Manage Sliders</h2><button id="add-slider-btn" class="btn btn-primary">Add Slider</button></div><div id="sliders-list">Loading...</div>`;
+            page.querySelector('#add-slider-btn').onclick = () => { document.getElementById('slider-form').reset(); document.getElementById('slider-modal').classList.remove('hidden'); };
+            db.ref('sliders').on('value', snapshot => {
+                const list = page.querySelector('#sliders-list');
+                list.innerHTML = !snapshot.exists() ? '<p>No sliders found.</p>' : '';
+                snapshot.forEach(child => { list.innerHTML += `<div class="item-card"><div class="info"><img src="${child.val().imageUrl}" alt="Slider" style="width:100px; height:auto; object-fit:contain;"><p><b>Action URL:</b> ${child.val().actionUrl || 'None'}</p></div><div class="actions"><button class="btn btn-danger" onclick="deleteItem('sliders/${child.key}')">Delete</button></div></div>`; });
+            });
+        };
+        
+        // NEW: Avatar Management Render Function
+        renderFunctions.avatars = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>Manage Avatars</h2><button id="add-avatar-btn" class="btn btn-primary">Add Avatar</button></div><div id="avatars-list" class="avatar-grid">Loading...</div>`;
+            page.querySelector('#add-avatar-btn').onclick = () => { 
+                document.getElementById('avatar-form').reset(); 
+                document.getElementById('avatar-modal').classList.remove('hidden'); 
+            };
+            db.ref('avatars').on('value', snapshot => {
+                const list = page.querySelector('#avatars-list');
+                list.innerHTML = '';
+                if (!snapshot.exists()) {
+                    list.innerHTML = '<p>No avatars added yet.</p>';
+                    return;
+                }
+                snapshot.forEach(child => {
+                    const avatar = child.val();
+                    list.innerHTML += `
+                        <div class="avatar-card">
+                            <img src="${avatar.imageUrl}" alt="Avatar">
+                            <div class="actions">
+                                <button class="btn btn-danger" onclick="deleteItem('avatars/${child.key}')">Delete</button>
+                            </div>
+                        </div>`;
+                });
+            });
+        };
+
+        renderFunctions['payment-methods'] = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>Payment Methods (for Deposit)</h2><button id="add-pm-btn" class="btn btn-primary">Add Method</button></div><div id="pm-list">Loading...</div>`;
+            page.querySelector('#add-pm-btn').onclick = () => { document.getElementById('pm-form').reset(); document.getElementById('payment-method-modal').classList.remove('hidden'); };
+            db.ref('paymentMethods').on('value', snapshot => {
+                const list = page.querySelector('#pm-list');
+                list.innerHTML = !snapshot.exists() ? '<p>No payment methods found.</p>' : '';
+                snapshot.forEach(child => {
+                    const pm = child.val();
+                    list.innerHTML += `<div class="item-card"><div class="info"><img src="${pm.logo}" alt="${pm.name}"><div><h4>${pm.name}</h4><p>Number: ${pm.number}</p></div></div><p><b>Instructions:</b> ${pm.instructions}</p><div class="actions"><button class="btn btn-danger" onclick="deleteItem('paymentMethods/${child.key}')">Delete</button></div></div>`;
+                });
+            });
+        };
+
+        renderFunctions.settings = (page) => {
+            page.innerHTML = `<div class="list-header"><h2>App Settings</h2></div><div class="item-card"><form id="settings-form"><fieldset><legend>Support Links</legend><div class="form-group"><label>Facebook URL</label><input type="url" id="setting-facebook-url"></div><div class="form-group"><label>Telegram URL</label><input type="url" id="setting-telegram-url"></div><div class="form-group"><label>Messenger URL</label><input type="url" id="setting-messenger-url"></div></fieldset><fieldset><legend>Payment Settings</legend><div class="form-grid"><div class="form-group"><label>Min Deposit (৳)</label><input type="number" id="setting-min-deposit"></div><div class="form-group"><label>Min Withdraw (৳)</label><input type="number" id="setting-min-withdraw"></div></div></fieldset><button type="submit" class="btn btn-primary" style="width:100%;margin-top:20px;">Save Settings</button></form></div>`;
+            
+            db.ref('appConfig').once('value', s => { 
+                const form = page.querySelector('#settings-form');
+                if (s.exists()) { 
+                    const config = s.val(); 
+                    if(config.supportLinks) { 
+                        form.querySelector('#setting-facebook-url').value = config.supportLinks.facebook || ''; 
+                        form.querySelector('#setting-telegram-url').value = config.supportLinks.telegram || ''; 
+                        form.querySelector('#setting-messenger-url').value = config.supportLinks.messenger || ''; 
+                    } 
+                    if(config.paymentSettings) { 
+                        form.querySelector('#setting-min-deposit').value = config.paymentSettings.minDeposit || 50; 
+                        form.querySelector('#setting-min-withdraw').value = config.paymentSettings.minWithdraw || 100; 
+                    } 
+                } 
+            });
+
+            page.querySelector('#settings-form').onsubmit = e => { 
+                e.preventDefault();
+                const form = e.target;
+                const data = { 
+                    supportLinks: { 
+                        facebook: form.querySelector('#setting-facebook-url').value, 
+                        telegram: form.querySelector('#setting-telegram-url').value, 
+                        messenger: form.querySelector('#setting-messenger-url').value 
+                    }, 
+                    paymentSettings: { 
+                        minDeposit: parseFloat(form.querySelector('#setting-min-deposit').value) || 50, 
+                        minWithdraw: parseFloat(form.querySelector('#setting-min-withdraw').value) || 100 
+                    } 
+                };
+                db.ref('appConfig').set(data).then(() => alert('Settings saved!')); 
+            };
+        };
+        
+        window.onload = () => {
+            document.getElementById('tournament-form').onsubmit = e => { 
+                e.preventDefault(); 
+                const data = { name: document.getElementById('tournament-name').value, imageUrl: document.getElementById('tournament-image-url').value };
+                db.ref('tournaments').push(data).then(() => e.target.closest('.modal-overlay').classList.add('hidden')); 
+            };
+            
+            document.getElementById('match-form').onsubmit = e => {
+                e.preventDefault();
+                const mId = document.getElementById('match-id').value;
+                const tId = document.getElementById('match-tournament-id').value;
+                const matchData = { name: document.getElementById('match-name').value, date: new Date(document.getElementById('match-date').value).toISOString(), entryFee: parseFloat(document.getElementById('match-entry-fee').value), perKill: parseFloat(document.getElementById('match-per-kill').value) || 0, maxPlayers: parseInt(document.getElementById('match-max-players').value), map: document.getElementById('match-map').value, version: document.getElementById('match-version').value, entryType: document.getElementById('match-entry-type').value, rules: document.getElementById('match-rules').value.split('\n').filter(r => r), prizeDetails: { winner: parseFloat(document.getElementById('prize-winner').value), second: parseFloat(document.getElementById('prize-second').value), third: parseFloat(document.getElementById('prize-third').value), fourth: parseFloat(document.getElementById('prize-fourth').value), fifth: parseFloat(document.getElementById('prize-fifth').value) }, status: 'upcoming' };
+                const promise = mId ? db.ref(`tournaments/${tId}/matches/${mId}`).update(matchData) : db.ref(`tournaments/${tId}/matches`).push(matchData);
+                promise.then(() => document.getElementById('match-modal').classList.add('hidden'));
+            };
+            
+            document.getElementById('room-info-form').onsubmit = e => { 
+                e.preventDefault(); 
+                const tourId = document.getElementById('room-info-tour-id').value;
+                const matchId = document.getElementById('room-info-match-id').value;
+                const data = { roomID: document.getElementById('room-id-input').value, roomPassword: document.getElementById('room-pass-input').value };
+                db.ref(`tournaments/${tourId}/matches/${matchId}`).update(data).then(() => { alert('Room Info Updated!'); e.target.closest('.modal-overlay').classList.add('hidden'); }); 
+            };
+            
+            document.getElementById('slider-form').onsubmit = e => { 
+                e.preventDefault(); 
+                const data = { imageUrl: document.getElementById('slider-image-url').value, actionUrl: document.getElementById('slider-action-url').value };
+                db.ref('sliders').push(data).then(() => e.target.closest('.modal-overlay').classList.add('hidden')); 
+            };
+
+            // NEW: Avatar form submission
+            document.getElementById('avatar-form').onsubmit = e => {
+                e.preventDefault();
+                const imageUrl = document.getElementById('avatar-image-url').value;
+                db.ref('avatars').push({ imageUrl }).then(() => {
+                    e.target.closest('.modal-overlay').classList.add('hidden');
+                });
+            };
+            
+            document.getElementById('pm-form').onsubmit = e => { 
+                e.preventDefault();
+                const data = { name: document.getElementById('pm-name').value, logo: document.getElementById('pm-logo').value, number: document.getElementById('pm-number').value, instructions: document.getElementById('pm-instructions').value };
+                db.ref('paymentMethods').push(data).then(() => e.target.closest('.modal-overlay').classList.add('hidden')); 
+            };
+
+            document.getElementById('withdraw-method-form').onsubmit = e => {
+                e.preventDefault();
+                const form = e.target;
+                const data = { 
+                    name: form.querySelector('#wm-name').value, 
+                    logo: form.querySelector('#wm-logo').value 
+                };
+                db.ref('withdrawMethods').push(data).then(() => {
+                    form.closest('.modal-overlay').classList.add('hidden');
+                });
+            };
+
+            const hash = window.location.hash.substring(1) || 'dashboard';
+            navigateTo(hash);
+        };
+    </script>
+</body>
+</html>
